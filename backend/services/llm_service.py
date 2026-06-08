@@ -1,4 +1,16 @@
-import ollama
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load .env
+load_dotenv()
+
+# Configure Gemini
+genai.configure(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
+
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 # =========================
@@ -69,7 +81,7 @@ Focus on:
 - Authentication
 - Scalability
 
-Respond like a staff engineer.
+Respond like a Staff Engineer.
 """
 
 
@@ -141,13 +153,9 @@ UI structure, pages, components and UX.
 Deployment, Docker, CI/CD and monitoring.
 
 Use markdown.
-
 Use headings.
-
 Use bullet points.
-
 Use code only when useful.
-
 Avoid long paragraphs.
 """
 
@@ -169,18 +177,17 @@ def ask_llm(prompt: str, agent: str = "auto"):
         AUTO_PROMPT
     )
 
-    response = ollama.chat(
-        model="llama3",
-        messages=[
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
+    final_prompt = f"""
+{system_prompt}
 
-    return response["message"]["content"]
+User Request:
+{prompt}
+"""
+
+    try:
+        response = model.generate_content(final_prompt)
+
+        return response.text
+
+    except Exception as e:
+        return f"❌ Gemini Error: {str(e)}"

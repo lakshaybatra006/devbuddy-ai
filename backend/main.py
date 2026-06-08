@@ -42,26 +42,23 @@ def home():
 # ==========================
 @app.post("/chat")
 def chat(data: ChatRequest):
+    try:
+        answer = ask_llm(
+            data.query,
+            data.agent
+        )
 
-    answer = ask_llm(
-        data.query,
-        data.agent
-    )
+        return {
+            "response": answer
+        }
 
-    # store conversation
-    chat_memory.append({
-        "role": "user",
-        "text": data.query
-    })
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
 
-    chat_memory.append({
-        "role": "ai",
-        "text": answer
-    })
 
-    return {
-        "response": answer
-    }
+    
 
 
 # ==========================
