@@ -1,80 +1,67 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from services.export_service import generate_pdf, generate_project_zip
-from services.llm_service import ask_llm
-from models import ChatRequest
-
-app = FastAPI()
-
-# ==========================
-# CORS
-# ==========================
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ==========================
-# HOME
-# ==========================
-@app.get("/")
-def home():
-    return {"message": "DevBuddy Backend Running 🚀"}
+import os
+import json
+import zipfile
+import re
+from fpdf import FPDF
 
 
-# ==========================
-# CHAT
-# ==========================
-@app.post("/chat")
-def chat(data: ChatRequest):
-    try:
-        answer = ask_llm(data.query, data.agent)
-
-        return {"response": answer}
-
-    except Exception as e:
-        return {"error": str(e)}
+def clean_text(text):
+    if not text:
+        return ""
+    return re.sub(r"[^\x00-\x7F]+", "", str(text))
 
 
-# ==========================
-# PDF EXPORT (FIXED)
-# ==========================
-@app.post("/download/pdf")
-def download_pdf(payload: dict):
-    """
-    Frontend must send:
-    {
-        "chat_memory": [...]
-    }
-    """
+# =========================
+# PDF GENERATION
+# =========================
+def generate_pdf(chat_memory):
 
-    chat_memory = payload.get("chat_memory", [])
+    os.makedirs("temp", exist_ok=True)
 
-    path = generate_pdf(chat_memory)
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.set_auto_page_break(auto=True, margin=15)
 
-    return FileResponse(
-        path,
-        media_type="application/pdf",
-        filename="devbuddy.pdf"
-    )
+    pdf.cell(200, 10, txt="DevBuddy AI Report", ln=True, align="C")
+    pdf.ln(10)
+
+    if not chat_memory:
+        pdf.multi_cell(0, 8, "No chat history available.")
+    else:
+        for msg in chat_memory:
+
+            role = clean_text(msg.get("role", "user"))
+            text = clean_text(msg.get("text") or msg.get("content", ""))
+
+            pdf.multi_cell(0, 8, f"{role.upper()}: {text}")
+            pdf.ln(2)
+
+    path = "temp/devbuddy.pdf"
+    pdf.output(path)
+
+    return path
 
 
-# ==========================
-# ZIP EXPORT (FIXED)
-# ==========================
-@app.post("/download/zip")
-def download_zip(payload: dict):
+# =========================
+# ZIP GENERATION
+# =========================
+def generate_project_zip(chat_memory):
 
-    chat_memory = payload.get("chat_memory", [])
+    os.makedirs("temp", exist_ok=True)
 
-    path = generate_project_zip(chat_memory)
+    zip_path = "temp/devbuddy.zip"
 
-    return FileResponse(
-        path,
-        media_type="application/zip",
-        filename="devbuddy.zip"
-    )
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+
+        zipf.writestr(
+            "chat_history.json",
+            json.dumps(chat_memory or [], indent=2)
+        )
+
+        zipf.writestr(
+            "README.txt",
+            "DevBuddy AI Export\nContains chat history JSON"
+        )
+
+    return zip_path
