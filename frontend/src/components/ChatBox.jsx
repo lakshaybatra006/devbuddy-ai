@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
 
+
+const API_URL = import.meta.env.VITE_API_URL;
+
 const ChatBox = ({
   messages,
   setMessages,
@@ -44,7 +47,7 @@ const ChatBox = ({
       setLoading(true);
 
       const res = await axios.post(
-        "http://127.0.0.1:8000/chat",
+  `${API_URL}/chat`,
         {
           query: input,
           agent: agent,
@@ -94,7 +97,7 @@ const ChatBox = ({
         </div>
         <div className="download-actions">
   <div className="download-bar">
-  <button onClick={() => window.open("http://127.0.0.1:8000/download/pdf")}>
+  <button onClick={() => window.open(`${API_URL}/download/pdf`)}>
     📄 PDF Report
   </button>
 
