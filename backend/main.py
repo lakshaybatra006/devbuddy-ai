@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-
+from starlette.middleware.sessions import SessionMiddleware
 from services.llm_service import ask_llm
 from services.export_service import generate_pdf, generate_project_zip
 from models import ChatRequest
+from services.auth_google import oauth
+from motor.motor_asyncio import AsyncIOMotorClient
 from db import users_collection
 from models import UserRegister, UserLogin
 from auth import hash_password, verify_password, create_token
@@ -12,6 +14,13 @@ from auth import hash_password, verify_password, create_token
 app = FastAPI()
 
 chat_memory = []
+
+app.add_middleware(SessionMiddleware, secret_key="devbuddy_secret")
+
+# Mongo
+client = AsyncIOMotorClient(os.getenv("MONGO_URL"))
+db = client[os.getenv("DB_NAME")]
+users_collection = db["users"]
 
 # =========================
 # CORS
@@ -54,6 +63,36 @@ def chat(data: ChatRequest):
 
     except Exception as e:
         return {"error": str(e)}
+@app.get("/auth/google/login")
+async def google_login(request: Request):
+
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+@app.get("/auth/google/callback")
+async def google_callback(request: Request):
+
+    token = await oauth.google.authorize_access_token(request)
+
+    user_info = token.get("userinfo")
+
+    if not user_info:
+        return {"error": "Google login failed"}
+
+    email = user_info["email"]
+
+    user = await users_collection.find_one({"email": email})
+
+    if not user:
+        new_user = {
+            "name": user_info["name"],
+            "email": email,
+            "picture": user_info["picture"]
+        }
+        await users_collection.insert_one(new_user)
+
+    return RedirectResponse(url="https://devbuddy-ai.vercel.app/")  # frontend redirect
 @app.post("/register")
 async def register(user: UserRegister):
 
