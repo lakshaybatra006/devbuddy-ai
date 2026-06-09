@@ -8,11 +8,7 @@ from models import ChatRequest
 
 app = FastAPI()
 
-# =========================
-# CHAT MEMORY (TEMP STORAGE)
-# =========================
 chat_memory = []
-
 
 # =========================
 # CORS
@@ -25,31 +21,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # =========================
-# HEALTH CHECK
+# HOME
 # =========================
 @app.get("/")
 def home():
     return {"message": "DevBuddy Backend Running 🚀"}
 
-
 # =========================
-# CHAT API
+# CHAT
 # =========================
 @app.post("/chat")
 def chat(data: ChatRequest):
     try:
         answer = ask_llm(data.query, data.agent)
 
-        # store chat
+        # store chat automatically
         chat_memory.append({
             "role": "user",
             "text": data.query
         })
 
         chat_memory.append({
-            "role": "assistant",
+            "role": "bot",
             "text": answer
         })
 
@@ -58,19 +52,16 @@ def chat(data: ChatRequest):
     except Exception as e:
         return {"error": str(e)}
 
-
 # =========================
-# STORE CHAT (OPTIONAL)
+# STORE (optional)
 # =========================
 @app.post("/store")
 def store(data: dict):
     chat_memory.append(data)
     return {"status": "ok"}
 
-
 # =========================
 # PDF DOWNLOAD
-# IMPORTANT: MUST BE GET
 # =========================
 @app.get("/download/pdf")
 def download_pdf():
@@ -81,7 +72,6 @@ def download_pdf():
         media_type="application/pdf",
         filename="devbuddy.pdf"
     )
-
 
 # =========================
 # ZIP DOWNLOAD

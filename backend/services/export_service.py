@@ -1,13 +1,10 @@
 import os
-import re
-import zipfile
 import json
+import zipfile
+import re
 from fpdf import FPDF
 
 
-# =========================
-# CLEAN TEXT (SAFE FOR PDF)
-# =========================
 def clean_text(text):
     if not text:
         return ""
@@ -15,9 +12,9 @@ def clean_text(text):
 
 
 # =========================
-# GENERATE PDF (FIXED)
+# PDF GENERATION
 # =========================
-def generate_pdf(chat_memory: list):
+def generate_pdf(chat_memory):
 
     os.makedirs("temp", exist_ok=True)
 
@@ -26,28 +23,17 @@ def generate_pdf(chat_memory: list):
     pdf.set_font("Arial", size=12)
     pdf.set_auto_page_break(auto=True, margin=15)
 
-    # Title
     pdf.cell(200, 10, txt="DevBuddy AI Report", ln=True, align="C")
     pdf.ln(10)
 
-    # DEBUG fallback
-    if chat_memory is None:
-        chat_memory = []
-
-    # EMPTY CHAT FIX
-    if len(chat_memory) == 0:
-        pdf.multi_cell(0, 8, txt="No chat history available.")
+    if not chat_memory:
+        pdf.multi_cell(0, 8, "No chat history available.")
     else:
         for msg in chat_memory:
-
             role = clean_text(msg.get("role", "user"))
-            text = clean_text(msg.get("text", msg.get("content", "")))
+            text = clean_text(msg.get("text", ""))
 
-            pdf.multi_cell(
-                0,
-                8,
-                txt=f"{role.upper()}: {text}"
-            )
+            pdf.multi_cell(0, 8, f"{role.upper()}: {text}")
             pdf.ln(2)
 
     path = "temp/devbuddy.pdf"
@@ -57,9 +43,9 @@ def generate_pdf(chat_memory: list):
 
 
 # =========================
-# GENERATE ZIP (OPTIONAL)
+# ZIP GENERATION
 # =========================
-def generate_project_zip(chat_memory: list):
+def generate_project_zip(chat_memory):
 
     os.makedirs("temp", exist_ok=True)
 
@@ -74,7 +60,7 @@ def generate_project_zip(chat_memory: list):
 
         zipf.writestr(
             "README.txt",
-            "DevBuddy AI Export\n\nContains chat_history.json"
+            "DevBuddy AI Export\nContains chat history JSON"
         )
 
     return zip_path
